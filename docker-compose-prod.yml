@@ -1,0 +1,40 @@
+version: "3.1"
+services:
+
+  laravel:
+    image: vanbakhanh/example-laravel-prod
+    build:
+      context: ./
+      dockerfile: docker/php-fpm/Dockerfile.prod
+      args:
+        - APP_ENV=production
+    container_name: example-laravel-prod
+    ports:
+      - "80:80"
+      - "443:443"
+
+  mysql:
+    image: mysql:8.0
+    container_name: example-mysql-prod
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=secret
+      - MYSQL_DATABASE=example
+    ports:
+      - "3306:3306"
+
+  mongo:
+    image: mongo
+    container_name: example-mongo-prod
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data/mongo:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: secret
+
+  redis:
+    image: redis:alpine
+    container_name: example-redis-prod

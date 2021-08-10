@@ -1,0 +1,63 @@
+FROM composer:2.1 as composer
+
+FROM php:7.4-fpm-alpine AS build
+
+WORKDIR /app
+
+COPY . .
+
+RUN apk --update --no-cache add \
+    nodejs \
+    npm \
+    build-base \
+    autoconf \
+    curl-dev \
+    openrc \
+    openssl \
+    && pecl install mongodb redis \
+    && docker-php-ext-enable mongodb redis \
+    && pecl config-set php_ini /etc/php.ini \
+    && docker-php-ext-install pdo pdo_mysql opcache \
+    && rm -rf /var/cache/apk/*
+
+COPY --from=composer /usr/bin/composer /usr/bin/composer
+
+RUN composer install --no-scripts --no-autoloader --ansi --no-interaction --optimize-autoloader && composer dumpautoload
+RUN npm install && npm run production && rm -rf ./node_modules
+
+FROM php:7.4-fpm-alpine AS php
+
+ARG APP_ENV=production
+
+EXPOSE 80 443
+
+WORKDIR /var/www/html
+
+RUN apk --update --no-cache add \
+    supervisor \
+    nginx \
+    build-base \
+    autoconf \
+    curl-dev \
+    openrc \
+    openssl \
+    && pecl install mongodb redis \
+    && docker-php-ext-enable mongodb redis \
+    && pecl config-set php_ini /etc/php.ini \
+    && docker-php-ext-install pdo pdo_mysql opcache \
+    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
+    && rm -rf /var/cache/apk/*
+
+COPY --from=composer /usr/bin/composer /usr/bin/composer
+COPY --from=build /app .
+COPY ./docker/php-fpm/php-ini-overrides.ini $PHP_INI_DIR/conf.d/99-overrides.ini
+COPY ./docker/php-fpm/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY ./docker/php-fpm/docker-entrypoint-prod.sh /usr/local/bin/docker-entrypoint.sh
+COPY ./docker/nginx/nginx-prod.conf /etc/nginx/http.d/default.conf
+COPY ./docker/nginx/ssl /etc/nginx/ssl
+COPY ./docker/env/${APP_ENV}.env .env
+
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
