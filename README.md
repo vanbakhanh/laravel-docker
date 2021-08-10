@@ -1,2 +1,2 @@
 # laravel-docker
-Docker configuration for Laravel application. Inlcude development config and production config. Support CI/CD.
+Docker configuration for Laravel application. Includes development config and production config.
