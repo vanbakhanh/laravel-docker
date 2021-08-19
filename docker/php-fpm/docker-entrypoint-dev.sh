@@ -2,15 +2,17 @@
 
 cd /var/www/html
 
+if [[ ! -f ".env" ]]
+then
 echo "Create env file"
-[[ -f .env ]] || cp .env.example .env
+cp .env.example .env
+echo "Generate key"
+php artisan key:generate
+fi
 
 echo "Give permission"
 chgrp -R www-data /var/www/html/storage /var/www/html/bootstrap/cache
 chmod -R ug+rwx /var/www/html/storage /var/www/html/bootstrap/cache
-
-echo "Generate key"
-php artisan key:generate
 
 echo "Create a storage link"
 php artisan storage:link
